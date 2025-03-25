@@ -3,5 +3,6 @@ palettable
 pymonetdb
 psycopg2
 pandas
+duckdb
 
 psutil

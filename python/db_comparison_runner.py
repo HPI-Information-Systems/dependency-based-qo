@@ -18,6 +18,7 @@ import time
 from collections import defaultdict
 from pathlib import Path
 
+import duckdb
 import pandas as pd
 from helpers import schema_keys
 from queries import static_job_queries, static_ssb_queries, static_tpcds_queries, static_tpch_queries
@@ -111,7 +112,7 @@ tables = {
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "dbms", type=str, choices=["monetdb", "hyrise", "greenplum", "umbra", "hana", "hana-int", "hyrise-int"]
+    "dbms", type=str, choices=["monetdb", "hyrise", "greenplum", "umbra", "hana", "hana-int", "hyrise-int", "duckdb"]
 )
 parser.add_argument("--time", "-t", type=int, default=7200)
 parser.add_argument("--port", "-p", type=int, default=5432)
@@ -239,6 +240,8 @@ def get_cursor():
             sslValidateCertificate=False,
             autocommit=connection_data["autocommit"],
         )
+    elif args.dbms == 'duckdb':
+    connection = duckdb.connect(database="db.duckdb", read_only=False, threads=args.cores)
 
     cursor = connection.cursor()
     return (connection, cursor)
@@ -448,6 +451,8 @@ def import_data():
         load_command = (
             """IMPORT FROM CSV FILE '{}' INTO {} WITH FIELD DELIMITED BY ',' ESCAPE '"' FAIL ON INVALID DATA;"""
         )
+    elif args.dbms == 'duckdb':
+        load_command = """COPY "{}" FROM '{}' WITH (FORMAT CSV, DELIMITER ',', NULL '', QUOTE '"');"""
 
     connection, cursor = get_cursor()
     table_name_regex = re.compile(r'(?<=CREATE\sTABLE\s)"?\w+"?(?=\s*\()', flags=re.IGNORECASE)
