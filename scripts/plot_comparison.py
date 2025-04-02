@@ -75,7 +75,7 @@ def grep_runtime_change(old_result_file, new_result_file, clients, runtime):
 def main(data_dir, output_dir, metric):
     clients = 32
     runtime = 7200
-    order = list(reversed(["hyrise-int", "hyrise", "hana-int", "hana", "umbra", "monetdb", "greenplum"]))[1:]
+    order = list(reversed(["hyrise-int", "hyrise", "hana-int", "hana", "umbra", "monetdb", "duckdb", "greenplum"]))[1:]
     changes = defaultdict(dict)
     HANA_NAME = "SAP HANA"
     min_lim = -10
@@ -116,6 +116,7 @@ def main(data_dir, output_dir, metric):
             "hana": HANA_NAME,
             "greenplum": "Greenplum",
             "greenplum-rows": "Greenplum\n(row)",
+            "duckdb": "DuckDB",
         }
 
         sns.set_theme(style="white")
@@ -172,9 +173,16 @@ def main(data_dir, output_dir, metric):
             data = [changes[d][config] for d in order]
             ax.bar(bar_positions, data, bar_width, color=colors[config], label=labels[config], edgecolor="none")
             for pos, val in zip(bar_positions, data):
-                y_pos = val - max_val / 100 if val > 0 else max(min_lim, val) + max_val / 100
+                offset = max_val / 100
+                y_pos = val - offset if val > 0 else max(min_lim, val) + offset
                 va = "top" if val > 0 else "bottom"
-                ax.text(pos, y_pos, str(round(val, 1)), ha="center", va=va, size=7 * 2, rotation=90, color="white")
+                color = "white"
+                if abs(val) < 3.5:
+                    va = "top" if val < 0 else "bottom"
+                    color = "black"
+                    print(val)
+                    y_pos = val + offset if val > 0 else max(min_lim, val) - offset
+                ax.text(pos, y_pos, str(round(val, 1)), ha="center", va=va, size=7 * 2, rotation=90, color=color)
 
         for config in configs[-1:]:
             offset_id = configs.index(config)
@@ -188,13 +196,18 @@ def main(data_dir, output_dir, metric):
             for pos, val in zip(bar_positions, data):
                 y_pos = val - max_val / 100 if val > 0 else max(min_lim, val) + max_val / 100
                 va = "top" if val > 0 else "bottom"
-                ax.text(pos, y_pos, str(round(val, 1)), ha="center", va=va, size=7 * 2, rotation=90, color="white")
+                color = "white"
+                if abs(val) < 3.5:
+                    va = "top" if val < 0 else "bottom"
+                    color = "black"
+                    print(val)
+                ax.text(pos, y_pos, str(round(val, 1)), ha="center", va=va, size=7 * 2, rotation=90, color=color)
 
         ax.set_ylim(None if min_val > min_lim else min_lim, max_val * 1.25)
 
         plt.xticks(group_centers, [names[d] for d in order], rotation=0)
         ax = plt.gca()
-        plt.ylabel(f"Median {metric}\nimprovement [\\%]", fontsize=8 * 2)
+        plt.ylabel(f"Workload {metric}\nimprovement [\\%]", fontsize=8 * 2)
         ax.tick_params(axis="both", which="major", labelsize=7 * 2, width=1, length=6, left=True, bottom=True)
 
         plt.grid(axis="y", visible=True)

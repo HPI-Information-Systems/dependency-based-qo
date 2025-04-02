@@ -240,8 +240,8 @@ def get_cursor():
             sslValidateCertificate=False,
             autocommit=connection_data["autocommit"],
         )
-    elif args.dbms == 'duckdb':
-    connection = duckdb.connect(database="db.duckdb", read_only=False, threads=args.cores)
+    elif args.dbms == "duckdb":
+        connection = duckdb.connect(database="db.duckdb", read_only=False, config=dict(threads=args.cores))
 
     cursor = connection.cursor()
     return (connection, cursor)
@@ -339,7 +339,7 @@ def cleanup():
     if dbms_process:
         print("Shutting {} down...".format(args.dbms))
         if args.dbms == "hana-int" or args.schema_keys:
-            drop_constraints(args.dbms in ["umbra", "hyrise", "hyrise-int"])
+            drop_constraints(args.dbms in ["duckdb", "umbra", "hyrise", "hyrise-int"])
         dbms_process.kill()
         time.sleep(10)
 
@@ -451,7 +451,7 @@ def import_data():
         load_command = (
             """IMPORT FROM CSV FILE '{}' INTO {} WITH FIELD DELIMITED BY ',' ESCAPE '"' FAIL ON INVALID DATA;"""
         )
-    elif args.dbms == 'duckdb':
+    elif args.dbms == "duckdb":
         load_command = """COPY "{}" FROM '{}' WITH (FORMAT CSV, DELIMITER ',', NULL '', QUOTE '"');"""
 
     connection, cursor = get_cursor()
@@ -461,8 +461,8 @@ def import_data():
     print("- Loading data ...")
 
     for benchmark in ["tpch", "tpcds", "ssb", "job"]:
-        # if args.benchmark != "all" and args.benchmark.lower() != benchmark:
-        #     continue
+        if args.benchmark != "all" and args.benchmark.lower() != benchmark:
+            continue
         with open(f"resources/schema_{benchmark}.sql") as f:
             for line in f:
                 stripped_line = line.strip()
@@ -510,7 +510,7 @@ def import_data():
                 create_statement = create_statement.replace("text", "nvarchar(1024)")
 
             # Umbra does not allow to add constraints later, so we have to do it now.
-            if args.dbms == "umbra" and args.schema_keys:
+            if args.dbms in ["umbra", "duckdb"] and args.schema_keys:
                 create_statement = create_statement[:-1].strip() if create_statement.endswith(";") else create_statement
                 create_statement = create_statement[:-1]
                 if table_name in primary_keys:
@@ -540,6 +540,9 @@ def import_data():
         cursor.execute(
             "INSERT INTO char_name VALUES (590883, 'Null', NULL, NULL, 'N4' , NULL, 'bbb93ef26e3c101ff11cdd21cab08a94');"  # noqa: E501
         )
+
+    # DuckDB v1.2+ cannot deal with double-escaped quotes.
+    duckdb_escape_tables = {"company_name", "keyword", "name", "title", "aka_title", "movie_info"}
 
     for t_id, table_name in enumerate(table_order):
         table_file_path = f"{data_path}/{table_name}.csv"
@@ -593,6 +596,18 @@ def import_data():
                     table_name, ", ".join(all_column_files)
                 )
             )
+
+        # elif args.dbms == "duckdb" and table_name in duckdb_escape_tables:
+        #     with open(table_file_path + ".json") as f:
+        #         meta = json.load(f)
+        #     column_names, column_types, nullable = parse_csv_meta(meta)
+        #     data = pd.read_csv(
+        #         table_file_path, header=None, names=column_names, dtype=column_types, keep_default_na=False
+        #     )
+        #     new_file_path = f"{data_path}/{table_name}.duckdb.csv"
+        #     data.to_csv(new_file_path, sep=",", header=False, index=False, quotechar="|")
+        #     # print("""COPY "{}" FROM '{}' WITH (FORMAT CSV, DELIMITER ',', NULL '', QUOTE '|');""".format(table_name, new_file_path))
+        #     cursor.execute("""COPY "{}" FROM '{}' WITH (FORMAT CSV, DELIMITER ',', NULL '', QUOTE '|');""".format(table_name, new_file_path))
 
         elif args.dbms not in ["hana", "hana-int"]:
             cursor.execute(load_command.format(table_name, table_file_path))
@@ -733,16 +748,25 @@ if args.dbms == "monetdb":
         .replace("ss_list_price BETWEEN 122 AND 122+10", "ss_list_price BETWEEN 122 AND 122+10.0")
         for q in selected_benchmark_queries
     ]
+elif args.dbms == "duckdb":
+    # "at" is a reserved keyword in DuckDB
+    selected_benchmark_queries = [
+        q.replace("aka_title AS at", "aka_title AS akat").replace(" at.", " akat.").replace("(at.", "(akat.")
+        for q in selected_benchmark_queries
+    ]
 
-drop_constraints(args.dbms in ["umbra", "hyrise", "hyrise-int"])
+
+drop_constraints(args.dbms in ["duckdb", "umbra", "hyrise", "hyrise-int"])
 
 if not args.skip_data_loading:
     import_data()
 
 if args.schema_keys or args.dbms == "hana-int":
-    add_constraints(args.dbms in ["umbra", "hyrise", "hyrise-int"])
+    add_constraints(args.dbms in ["duckdb", "umbra", "hyrise", "hyrise-int"])
 
-if args.dbms in ["monetdb", "umbra", "greenplum", "hyrise-int"] or (args.dbms == "hyrise" and args.schema_keys):
+if args.dbms in ["monetdb", "umbra", "greenplum", "hyrise-int", "duckdb"] or (
+    args.dbms == "hyrise" and args.schema_keys
+):
     print("Warming up database (complete single-threaded run) due to initial persistence on disk: ", end="")
     sys.stdout.flush()
     loop(0, selected_benchmark_queries, "warmup", time.perf_counter(), [], 3600, True)
