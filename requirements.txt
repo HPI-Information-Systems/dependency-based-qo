@@ -3,6 +3,6 @@ palettable
 pymonetdb
 psycopg2
 pandas
-duckdb
+duckdb==1.1.3
 
 psutil

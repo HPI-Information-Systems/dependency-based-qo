@@ -30,7 +30,18 @@ cmake -DCMAKE_INSTALL_PREFIX="$monetdb_home" -DASSERT=OFF -DCMAKE_BUILD_TYPE=Rel
       -DCMAKE_CXX_COMPILER=clang++-17 ..
 cmake --build . --target install -- -j "$(nproc)"
 
-rces.list.d/docker.list > /dev/null
+# Add Docker's official GPG key:
+sudo apt-get update
+sudo apt-get install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources:
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 sudo apt-get update
 
 sudo systemctl start docker
@@ -44,13 +55,13 @@ docker pull umbradb/umbra:24.11
 sudo systemctl stop docker docker.socket
 
 # Build and install Greenplum binaries.
-cd "$project_root"/greenplum
-gp_dir=$(pwd)
-CC=gcc-11 CXX=g++-11 ./configure --prefix="$gp_home" --disable-gpfdist
-CC=gcc-11 CXX=g++-11 make -j "$(nproc)"
-CC=gcc-11 CXX=g++-11 make -j "$(nproc)" install
-cd "${gp_home}/bin"
-ln -s -f "${gp_dir}/gpMgmt/bin/gppylib" .
+# cd "$project_root"/greenplum
+# gp_dir=$(pwd)
+# CC=gcc-11 CXX=g++-11 ./configure --prefix="$gp_home" --disable-gpfdist
+# CC=gcc-11 CXX=g++-11 make -j "$(nproc)"
+# CC=gcc-11 CXX=g++-11 make -j "$(nproc)" install
+# cd "${gp_home}/bin"
+# ln -s -f "${gp_dir}/gpMgmt/bin/gppylib" .
 
 # Download data for experiments on different systems.
 cd "$project_root"

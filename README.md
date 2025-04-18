@@ -1,6 +1,7 @@
-# Enabling Data Dependency-based Query Optimization
+# Unleashing the Power of Data Dependencies for Query Optimization With Efficient Discovery and System Integration
 
-This repository contains the artifacts for the paper _Enabling Data Dependency-based Query Optimization_.
+This repository contains the artifacts for the paper _
+Unleashing the Power of Data Dependencies for Query Optimization With Efficient Discovery and System Integration_.
 
 ## Reproduction Guide
 

@@ -78,6 +78,7 @@ def main(data_dir, output_dir, metric):
     order = list(reversed(["hyrise-int", "hyrise", "hana-int", "hana", "umbra", "monetdb", "duckdb", "greenplum"]))[1:]
     changes = defaultdict(dict)
     HANA_NAME = "SAP HANA"
+    HANA_NAME = "System X"
     min_lim = -10
 
     for benchmark in ["all"]:  # , "TPCH", "TPCDS", "SSB", "JOB"]:
@@ -119,6 +120,8 @@ def main(data_dir, output_dir, metric):
             "duckdb": "DuckDB",
         }
 
+        changes["hyrise"].pop("optimizer")
+
         sns.set_theme(style="white")
         mpl.use("pgf")
 
@@ -151,9 +154,10 @@ def main(data_dir, output_dir, metric):
         colors = {c: base_palette[i] for i, c in enumerate(configs)}
 
         group_centers = np.arange(len(order))
-        offsets = {d: get_offsets(d, changes, 3) for d in changes.keys()}
-        bar_width = 0.175
-        margin = 0.01
+        offsets = {d: get_offsets(d, changes, 1.5) for d in changes.keys()}
+        bar_width = 0.225
+        margin = 0
+        margin = 0.05
 
         labels = {
             "keys": r"PKs \& FKs",
@@ -182,39 +186,41 @@ def main(data_dir, output_dir, metric):
                     color = "black"
                     print(val)
                     y_pos = val + offset if val > 0 else max(min_lim, val) - offset
-                ax.text(pos, y_pos, str(round(val, 1)), ha="center", va=va, size=7 * 2, rotation=90, color=color)
+                label = str(round(val, 1)) if abs(val) > 0.2 else str(round(val))
+                ax.text(pos, y_pos, label, ha="center", va=va, size=7 * 2, rotation=90, color=color)
 
-        for config in configs[-1:]:
-            offset_id = configs.index(config)
-            internal_count = sum([config in s for s in changes.values()])
-            bar_positions = [
-                p + offsets[d][offset_id] * (0.5 * bar_width + margin)
-                for d, p in zip(order[-internal_count:], group_centers[-internal_count:])
-            ]
-            data = [changes[d][config] for d in order[-internal_count:]]
-            ax.bar(bar_positions, data, bar_width, color=colors[config], label=labels[config], edgecolor="none")
-            for pos, val in zip(bar_positions, data):
-                y_pos = val - max_val / 100 if val > 0 else max(min_lim, val) + max_val / 100
-                va = "top" if val > 0 else "bottom"
-                color = "white"
-                if abs(val) < 3.5:
-                    va = "top" if val < 0 else "bottom"
-                    color = "black"
-                    print(val)
-                ax.text(pos, y_pos, str(round(val, 1)), ha="center", va=va, size=7 * 2, rotation=90, color=color)
+        # for config in configs[-1:]:
+        #     offset_id = configs.index(config)
+        #     internal_count = sum([config in s for s in changes.values()])
+        #     bar_positions = [
+        #         p + offsets[d][offset_id] * (0.5 * bar_width + margin)
+        #         for d, p in zip(order[-internal_count:], group_centers[-internal_count:])
+        #     ]
+        #     data = [changes[d][config] for d in order[-internal_count:]]
+        #     ax.bar(bar_positions, data, bar_width, color=colors[config], label=labels[config], edgecolor="none")
+        #     for pos, val in zip(bar_positions, data):
+        #         y_pos = val - max_val / 100 if val > 0 else max(min_lim, val) + max_val / 100
+        #         va = "top" if val > 0 else "bottom"
+        #         color = "white"
+        #         if abs(val) < 3.5:
+        #             va = "top" if val < 0 else "bottom"
+        #             color = "black"
+        #             print(val)
+        #         ax.text(pos, y_pos, str(round(val, 1)), ha="center", va=va, size=7 * 2, rotation=90, color=color)
 
-        ax.set_ylim(None if min_val > min_lim else min_lim, max_val * 1.25)
+        ax.set_ylim(None if min_val > min_lim else min_lim, max_val * 1.3)
 
         plt.xticks(group_centers, [names[d] for d in order], rotation=0)
         ax = plt.gca()
-        plt.ylabel(f"Workload {metric}\nimprovement [\\%]", fontsize=8 * 2)
+        metric_title = metric if metric != "runtime" else "execution time".capitalize()
+        plt.ylabel(f"{metric_title}\nimprovement [\\%]", fontsize=8 * 2)
         ax.tick_params(axis="both", which="major", labelsize=7 * 2, width=1, length=6, left=True, bottom=True)
 
         plt.grid(axis="y", visible=True)
         plt.legend(
             loc="best",
             fontsize=6 * 2,
-            ncol=2,
+            ncol=3,
             fancybox=False,
             framealpha=1.0,
             columnspacing=1.0,

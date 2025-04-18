@@ -10,25 +10,16 @@ fi
 
 node_id=$1
 
-# Build and execute naive dependency discovery for comparison.
-cd hyrise/cmake-build-release
-git checkout benchmark-naive-validation
-make hyriseBenchmarkTPCH hyriseBenchmarkTPCDS hyriseBenchmarkStarSchema hyriseBenchmarkJoinOrder \
-     hyriseDependencyDiscoveryPlugin -j "$(nproc)"
-
 # Validation times for naive dependency discovery.
-cd ..
-numactl -N "${node_id}" -m "${node_id}" SCHEMA_CONSTRAINTS=0 VALIDATION_LOOPS=100 ./cmake-build-release/hyriseBenchmarkTPCH \
+numactl -N "${node_id}" -m "${node_id}" PERFORM_ABLATION=1 SCHEMA_CONSTRAINTS=0 VALIDATION_LOOPS=100 ./cmake-build-release/hyriseBenchmarkTPCH \
     -r 0 -p ./cmake-build-release/lib/libhyriseDependencyDiscoveryPlugin.so \
-    > cmake-build-release/benchmark_plugin_results/hyriseBenchmarkTPCH_st_s10_plugin_naive.log
-numactl -N "${node_id}" -m "${node_id}" SCHEMA_CONSTRAINTS=0 VALIDATION_LOOPS=100 ./cmake-build-release/hyriseBenchmarkTPCDS \
+    > cmake-build-release/benchmark_plugin_results/ablation_tpch.log
+numactl -N "${node_id}" -m "${node_id}" PERFORM_ABLATION=1 SCHEMA_CONSTRAINTS=0 VALIDATION_LOOPS=100 ./cmake-build-release/hyriseBenchmarkTPCDS \
     -r 0 -p ./cmake-build-release/lib/libhyriseDependencyDiscoveryPlugin.so \
-    > cmake-build-release/benchmark_plugin_results/hyriseBenchmarkTPCDS_st_s10_plugin_naive.log
-numactl -N "${node_id}" -m "${node_id}" SCHEMA_CONSTRAINTS=0 VALIDATION_LOOPS=100 ./cmake-build-release/hyriseBenchmarkStarSchema \
+    > cmake-build-release/benchmark_plugin_results/ablation_tpcds.log
+numactl -N "${node_id}" -m "${node_id}" PERFORM_ABLATION=1 SCHEMA_CONSTRAINTS=0 VALIDATION_LOOPS=100 ./cmake-build-release/hyriseBenchmarkStarSchema \
     -r 0 -p ./cmake-build-release/lib/libhyriseDependencyDiscoveryPlugin.so \
-    > cmake-build-release/benchmark_plugin_results/hyriseBenchmarkStarSchema_st_s10_plugin_naive.log
-numactl -N "${node_id}" -m "${node_id}" SCHEMA_CONSTRAINTS=0 VALIDATION_LOOPS=100 ./cmake-build-release/hyriseBenchmarkJoinOrder \
+    > cmake-build-release/benchmark_plugin_results/ablation_ssb.log
+numactl -N "${node_id}" -m "${node_id}" PERFORM_ABLATION=1 SCHEMA_CONSTRAINTS=0 VALIDATION_LOOPS=100 ./cmake-build-release/hyriseBenchmarkJoinOrder \
     -r 0 -p ./cmake-build-release/lib/libhyriseDependencyDiscoveryPlugin.so \
-    > cmake-build-release/benchmark_plugin_results/hyriseBenchmarkJoinOrder_st_plugin_naive.log
-
-git checkout main
+    > cmake-build-release/benchmark_plugin_results/ablation_job.log

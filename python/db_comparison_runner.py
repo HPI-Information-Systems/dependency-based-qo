@@ -18,7 +18,6 @@ import time
 from collections import defaultdict
 from pathlib import Path
 
-import duckdb
 import pandas as pd
 from helpers import schema_keys
 from queries import static_job_queries, static_ssb_queries, static_tpcds_queries, static_tpch_queries
@@ -408,6 +407,10 @@ elif args.dbms == "greenplum":
     time.sleep(1)
 elif args.dbms in ["hana", "hana-int"]:
     from hdbcli import dbapi
+elif args.dbms == "duckdb":
+    import duckdb
+else:
+    raise AttributeError(f"Unknown DBMS: '{args.dbms}'")
 
 
 def parse_data_type(type_string):
