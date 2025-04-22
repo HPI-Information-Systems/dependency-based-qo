@@ -45,8 +45,14 @@ $numactl_command ./python/db_comparison_runner.py monetdb --clients "${num_clien
 $numactl_command ./python/db_comparison_runner.py monetdb --clients "${num_clients}" --cores "${num_cpu}" -m "${node_id}" --skip_data_loading "${no_numa}" --rewrites --schema_keys
 rm -rf db_comparison_data/monetdb/data
 
+rm -rf db.duckdb
+$numactl_command ./python/db_comparison_runner.py duckdb --clients "${num_clients}" --cores "${num_cpu}"
+$numactl_command ./python/db_comparison_runner.py duckdb --clients "${num_clients}" --cores "${num_cpu}" --skip_data_loading --rewrites;
+$numactl_command ./python/db_comparison_runner.py duckdb --clients "${num_clients}" --cores "${num_cpu}" --schema_keys
+$numactl_command ./python/db_comparison_runner.py duckdb --clients "${num_clients}" --cores "${num_cpu}" --skip_data_loading --schema_keys --rewrites
+rm -rf db.duckdb
 
-rm -rf db_comparison_data/umbra
+rm -rf db_comparison_data/umbra/*
 mkdir -r db_comparison_data/umbra
 sudo systemctl start docker docker.socket
 sudo docker run -v "$(pwd)"/db_comparison_data/umbra:/var/db -v "$(pwd)":"$(pwd)" -p 5432:5432 "${docker_cpuset}" --name umbra-bench -d umbradb/umbra:25.01
@@ -55,7 +61,7 @@ $numactl_command ./python/db_comparison_runner.py umbra --clients "${num_clients
 docker stop umbra-bench
 
 # Delete all data and make sure to get a new DB because we cannot add/drop constraints with Umbra
-rm -rf db_comparison_data/umbra
+rm -rf db_comparison_data/umbra/*
 mkdir -r db_comparison_data/umbra
 docker system prune -fa
 
@@ -64,15 +70,7 @@ $numactl_command ./python/db_comparison_runner.py umbra --clients "${num_clients
 $numactl_command ./python/db_comparison_runner.py umbra --clients "${num_clients}" --cores "${num_cpu}" -m "${node_id}" "${no_numa}" --rewrites --schema_keys
 
 docker stop umbra-bench
-rm -rf db_comparison_data/umbra
+rm -rf db_comparison_data/umbra/*
 mkdir -r db_comparison_data/umbra
 docker system prune -fa
 sudo systemctl stop docker docker.socket
-
-# num_segments="$num_cpu"
-# num_segments=$([ "$num_cpu" -le 14 ] && echo "$num_cpu" || echo "55")
-# ./python/greenplum_configure.py -p 7777 -n "$num_segments"
-# PORT=7777 ./scripts/greenplum_init.sh
-# $numactl_command ./python/db_comparison_runner.py greenplum --clients "${num_clients}" --cores "${num_cpu}" -m "${node_id}" "${no_numa}" -p 7777
-# $numactl_command ./python/db_comparison_runner.py greenplum --clients "${num_clients}" --cores "${num_cpu}" -m "${node_id}" --skip_data_loading "${no_numa}" -p 7777
-# ./scripts/greenplum_stop.sh

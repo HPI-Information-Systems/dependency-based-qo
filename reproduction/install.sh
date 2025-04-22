@@ -13,7 +13,6 @@ mkdir -p db_comparison_data
 
 project_root=$(pwd)
 monetdb_home="${project_root}/db_comparison_data/monetdb"
-gp_home="${project_root}/db_comparison_data/greenplum"
 umbra_home="${project_root}/db_comparison_data/umbra"
 
 # Build Hyrise binaries and dependency discovery plugin.
@@ -51,17 +50,8 @@ cd "$project_root"
 mkdir -p "$umbra_home"
 chmod 777 "$umbra_home"
 docker pull umbradb/umbra:24.11
-
 sudo systemctl stop docker docker.socket
 
-# Build and install Greenplum binaries.
-# cd "$project_root"/greenplum
-# gp_dir=$(pwd)
-# CC=gcc-11 CXX=g++-11 ./configure --prefix="$gp_home" --disable-gpfdist
-# CC=gcc-11 CXX=g++-11 make -j "$(nproc)"
-# CC=gcc-11 CXX=g++-11 make -j "$(nproc)" install
-# cd "${gp_home}/bin"
-# ln -s -f "${gp_dir}/gpMgmt/bin/gppylib" .
 
 # Download data for experiments on different systems.
 cd "$project_root"

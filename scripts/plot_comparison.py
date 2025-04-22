@@ -189,25 +189,6 @@ def main(data_dir, output_dir, metric):
                 label = str(round(val, 1)) if abs(val) > 0.2 else str(round(val))
                 ax.text(pos, y_pos, label, ha="center", va=va, size=7 * 2, rotation=90, color=color)
 
-        # for config in configs[-1:]:
-        #     offset_id = configs.index(config)
-        #     internal_count = sum([config in s for s in changes.values()])
-        #     bar_positions = [
-        #         p + offsets[d][offset_id] * (0.5 * bar_width + margin)
-        #         for d, p in zip(order[-internal_count:], group_centers[-internal_count:])
-        #     ]
-        #     data = [changes[d][config] for d in order[-internal_count:]]
-        #     ax.bar(bar_positions, data, bar_width, color=colors[config], label=labels[config], edgecolor="none")
-        #     for pos, val in zip(bar_positions, data):
-        #         y_pos = val - max_val / 100 if val > 0 else max(min_lim, val) + max_val / 100
-        #         va = "top" if val > 0 else "bottom"
-        #         color = "white"
-        #         if abs(val) < 3.5:
-        #             va = "top" if val < 0 else "bottom"
-        #             color = "black"
-        #             print(val)
-        #         ax.text(pos, y_pos, str(round(val, 1)), ha="center", va=va, size=7 * 2, rotation=90, color=color)
-
         ax.set_ylim(None if min_val > min_lim else min_lim, max_val * 1.3)
 
         plt.xticks(group_centers, [names[d] for d in order], rotation=0)

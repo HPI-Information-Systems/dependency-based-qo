@@ -544,9 +544,6 @@ def import_data():
             "INSERT INTO char_name VALUES (590883, 'Null', NULL, NULL, 'N4' , NULL, 'bbb93ef26e3c101ff11cdd21cab08a94');"  # noqa: E501
         )
 
-    # DuckDB v1.2+ cannot deal with double-escaped quotes.
-    duckdb_escape_tables = {"company_name", "keyword", "name", "title", "aka_title", "movie_info"}
-
     for t_id, table_name in enumerate(table_order):
         table_file_path = f"{data_path}/{table_name}.csv"
         binary_file_path = f"{data_path}/{table_name}.bin"
@@ -599,18 +596,6 @@ def import_data():
                     table_name, ", ".join(all_column_files)
                 )
             )
-
-        # elif args.dbms == "duckdb" and table_name in duckdb_escape_tables:
-        #     with open(table_file_path + ".json") as f:
-        #         meta = json.load(f)
-        #     column_names, column_types, nullable = parse_csv_meta(meta)
-        #     data = pd.read_csv(
-        #         table_file_path, header=None, names=column_names, dtype=column_types, keep_default_na=False
-        #     )
-        #     new_file_path = f"{data_path}/{table_name}.duckdb.csv"
-        #     data.to_csv(new_file_path, sep=",", header=False, index=False, quotechar="|")
-        #     # print("""COPY "{}" FROM '{}' WITH (FORMAT CSV, DELIMITER ',', NULL '', QUOTE '|');""".format(table_name, new_file_path))
-        #     cursor.execute("""COPY "{}" FROM '{}' WITH (FORMAT CSV, DELIMITER ',', NULL '', QUOTE '|');""".format(table_name, new_file_path))
 
         elif args.dbms not in ["hana", "hana-int"]:
             cursor.execute(load_command.format(table_name, table_file_path))
