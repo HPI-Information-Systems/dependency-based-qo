@@ -3,6 +3,7 @@
 
 import argparse
 import atexit
+import datetime
 import csv
 import json
 import os
@@ -109,9 +110,15 @@ tables = {
     "SSB": ["customer", "date", "lineorder", "part", "supplier"],
 }
 
+postgres_infeasible_queries = {
+    "TPCH": ["17", "21", "20"],
+    "TPCDS": ["01", "06", "35", "81", "95"],
+    # "JOB": ["16a", "16d", "19d"]
+}
+
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "dbms", type=str, choices=["monetdb", "hyrise", "greenplum", "umbra", "hana", "hana-int", "hyrise-int", "duckdb"]
+    "dbms", type=str, choices=["monetdb", "hyrise", "greenplum", "umbra", "hana", "hana-int", "hyrise-int", "duckdb", "postgres"]
 )
 parser.add_argument("--time", "-t", type=int, default=7200)
 parser.add_argument("--port", "-p", type=int, default=5432)
@@ -194,16 +201,20 @@ if args.dbms == "hana-int":
     ssb_queries = update_hana_optimized_queries(ssb_queries, list(static_ssb_queries.queries_o3.keys()))
     job_queries = update_hana_optimized_queries(job_queries, list(static_job_queries.queries_o3.keys()))
 
-tpch_queries = [tpch_queries[q] for q in sorted(tpch_queries.keys())]
-tpcds_queries = [tpcds_queries[q] for q in sorted(tpcds_queries.keys())]
-ssb_queries = [ssb_queries[q] for q in sorted(ssb_queries.keys())]
-job_queries = [job_queries[q] for q in sorted(job_queries.keys())]
-
 assert len(tpch_queries) == 22
 assert len(tpcds_queries) == 48
 assert len(ssb_queries) == 13
 assert len(job_queries) == 113
 
+if args.dbms == "postgres":
+    tpch_queries = {k: q for k, q in tpch_queries.items() if k not in postgres_infeasible_queries["TPCH"]}
+    tpcds_queries = {k: q for k, q in tpcds_queries.items() if k not in postgres_infeasible_queries["TPCDS"]}
+    # job_queries = {k: q for k, q in job_queries.items() if k not in postgres_infeasible_queries["JOB"]}
+
+tpch_queries = {f"TPCH-{q}": tpch_queries[q] for q in sorted(tpch_queries.keys())}
+tpcds_queries = {f"TPCDS-{q}": tpcds_queries[q] for q in sorted(tpcds_queries.keys())}
+ssb_queries = {f"SSB-{q}": ssb_queries[q] for q in sorted(ssb_queries.keys())}
+job_queries = {f"JOB-{q}": job_queries[q] for q in sorted(job_queries.keys())}
 
 def get_cursor():
     if args.dbms == "monetdb":
@@ -241,6 +252,8 @@ def get_cursor():
         )
     elif args.dbms == "duckdb":
         connection = duckdb.connect(database="db.duckdb", read_only=False, config=dict(threads=args.cores))
+    elif args.dbms == "postgres":
+        connection = psycopg2.connect(host="localhost", user="bench", password="mysecretpassword")
 
     cursor = connection.cursor()
     return (connection, cursor)
@@ -291,7 +304,7 @@ def add_constraints(skip):
     print(f"\r- Added {len(schema_keys.foreign_keys)} FOREIGN KEY constraints ({round(end - start, 1)} s)")
 
     cursor.close()
-    if args.dbms in ["umbra", "greenplum"]:
+    if args.dbms in ["umbra", "greenplum", "postgres"]:
         connection.commit()
     connection.close()
 
@@ -326,9 +339,47 @@ def drop_constraints(skip):
         constraint_id += 1
 
     cursor.close()
-    if args.dbms in ["umbra", "greenplum"]:
+    if args.dbms in ["umbra", "greenplum", "postgres"]:
         connection.commit()
     connection.close()
+
+def add_indexes():
+    start = time.perf_counter()
+
+    add_pk_command = """CREATE INDEX idx_pk_{} ON {} ({});"""
+    constraint_id = 1
+    print(f"\r- Add PRIMARY KEY indexes ({constraint_id}/{len(schema_keys.primary_keys)})", end="")
+    for table_name, column_names in schema_keys.primary_keys:
+        table = f'"{table_name}"' if table_name == "date" else table_name
+
+        try:
+            connection, cursor = get_cursor()
+            cursor.execute(add_pk_command.format(constraint_id, table, ", ".join(column_names)))
+            cursor.close()
+            connection.commit()
+            connection.close()
+        except Exception as e:
+            print(f"""\n - Error adding PK index {table} ({", ".join(column_names)})""")
+            print(f"    {str(e)}")
+            pass
+
+        constraint_id += 1
+    end = time.perf_counter()
+    print(f"\r- Added {len(schema_keys.primary_keys)} PRIMARY KEY indexes ({round(end - start, 1)} s)")
+    start = end
+
+def drop_indexes():
+    connection, cursor = get_cursor()
+    print("- Drop PRIMARY KEY indexes ...")
+    for constraint_id in range(1, len(schema_keys.primary_keys) +1):
+        try:
+            cursor.execute(f"DROP INDEX IF EXISTS idx_pk_{constraint_id}")
+        except Exception:
+            pass
+
+    connection.commit()
+    connection.close()
+
 
 
 dbms_process = None
@@ -409,6 +460,8 @@ elif args.dbms in ["hana", "hana-int"]:
     from hdbcli import dbapi
 elif args.dbms == "duckdb":
     import duckdb
+elif args.dbms == "postgres":
+    import psycopg2
 else:
     raise AttributeError(f"Unknown DBMS: '{args.dbms}'")
 
@@ -455,6 +508,8 @@ def import_data():
             """IMPORT FROM CSV FILE '{}' INTO {} WITH FIELD DELIMITED BY ',' ESCAPE '"' FAIL ON INVALID DATA;"""
         )
     elif args.dbms == "duckdb":
+        load_command = """COPY "{}" FROM '{}' WITH (FORMAT CSV, DELIMITER ',', NULL '', QUOTE '"');"""
+    elif args.dbms == "postgres":
         load_command = """COPY "{}" FROM '{}' WITH (FORMAT CSV, DELIMITER ',', NULL '', QUOTE '"');"""
 
     connection, cursor = get_cursor()
@@ -662,7 +717,7 @@ def import_data():
         print(f"({round(end - start, 1)} s)")
 
     cursor.close()
-    if args.dbms in ["umbra", "greenplum"]:
+    if args.dbms in ["umbra", "greenplum", "postgres"]:
         connection.commit()
     connection.close()
 
@@ -678,10 +733,10 @@ def loop(thread_id, queries, query_id, start_time, successful_runs, timeout, is_
         if args.skip_warmup:
             return
 
-        for q_id, query in enumerate(queries):
+        for q_id, query in queries.items():
             try:
                 cursor.execute(query)
-                print("({})".format(q_id + 1), end="", flush=True)
+                print("({})".format(q_id), end="", flush=True)
             except Exception as e:
                 print(e)
                 print(query)
@@ -693,10 +748,10 @@ def loop(thread_id, queries, query_id, start_time, successful_runs, timeout, is_
 
     while True:
         if query_id == "shuffled":
-            items = queries.copy()
+            items = list(queries.values())
             random.shuffle(items)
         else:
-            items = [queries[query_id - 1]]
+            items = [queries[query_id]]
         if args.dbms in ["hana", "hana-int"]:
             split_items = []
             for item in items:
@@ -726,31 +781,37 @@ elif args.benchmark == "SSB":
 elif args.benchmark == "JOB":
     selected_benchmark_queries = job_queries
 elif args.benchmark == "all":
-    selected_benchmark_queries = tpch_queries + tpcds_queries + ssb_queries + job_queries
+    selected_benchmark_queries = tpch_queries | tpcds_queries | ssb_queries | job_queries
 
 
 if args.dbms == "monetdb":
-    selected_benchmark_queries = [
-        q.replace("!=", "<>")
+    selected_benchmark_queries = {
+        k: q.replace("!=", "<>")
         .replace("SELECT MIN(chn.name) AS character,", 'SELECT MIN(chn.name) AS "character",')
         .replace("ss_list_price BETWEEN 122 AND 122+10", "ss_list_price BETWEEN 122 AND 122+10.0")
-        for q in selected_benchmark_queries
-    ]
+        for k, q in selected_benchmark_queries.items()
+    }
 elif args.dbms == "duckdb":
     # "at" is a reserved keyword in DuckDB
-    selected_benchmark_queries = [
-        q.replace("aka_title AS at", "aka_title AS akat").replace(" at.", " akat.").replace("(at.", "(akat.")
-        for q in selected_benchmark_queries
-    ]
+    selected_benchmark_queries = {
+        k: q.replace("aka_title AS at", "aka_title AS akat").replace(" at.", " akat.").replace("(at.", "(akat.")
+        for k, q in selected_benchmark_queries
+    }
 
 
 drop_constraints(args.dbms in ["duckdb", "umbra", "hyrise", "hyrise-int"])
+
+if args.dbms == "postgres":
+    drop_indexes()
+
 
 if not args.skip_data_loading:
     import_data()
 
 if args.schema_keys or args.dbms == "hana-int":
     add_constraints(args.dbms in ["duckdb", "umbra", "hyrise", "hyrise-int"])
+if not args.schema_keys and args.dbms == "postgres":
+    add_indexes()
 
 if args.dbms in ["monetdb", "umbra", "greenplum", "hyrise-int", "duckdb"] or (
     args.dbms == "hyrise" and args.schema_keys
@@ -778,12 +839,12 @@ if args.dbms == "hyrise-int" or (args.dbms == "hyrise" and args.schema_keys):
 os.makedirs("db_comparison_results", exist_ok=True)
 
 runtimes = {}
-benchmark_queries = list(range(1, len(selected_benchmark_queries) + 1))
+benchmark_queries = sorted(selected_benchmark_queries.keys())
 
 if args.clients > 1:
     benchmark_queries = ["shuffled"]
 for query_id in benchmark_queries:
-    query_name = "{} {:02}".format(args.benchmark, query_id) if query_id != "shuffled" else "shuffled"
+    query_name = query_id if query_id != "shuffled" else "shuffled"
     print("Benchmarking {}...".format(query_name), end="", flush=True)
 
     successful_runs = []
@@ -828,12 +889,13 @@ for query_id in benchmark_queries:
 
     print("\r" + " " * 80, end="")
     print(
-        "\r{}\t>>\t avg.: {:10.4f} ms\tmed.: {:10.4f} ms\tmin.: {:10.4f} ms\tmax.: {:10.4f} ms".format(
+        "\r{}\t>>\t avg.: {:10.4f} ms\tmed.: {:10.4f} ms\tmin.: {:10.4f} ms\tmax.: {:10.4f} ms\tfinished {}".format(
             query_name,
             sum(successful_runs) / len(successful_runs) if len(successful_runs) > 0 else 0,
             statistics.median(successful_runs) if len(successful_runs) > 0 else 0,
             min(successful_runs) if len(successful_runs) > 0 else 0,
             max(successful_runs) if len(successful_runs) > 0 else 0,
+            str(datetime.datetime.now().time())
         )
     )
 
