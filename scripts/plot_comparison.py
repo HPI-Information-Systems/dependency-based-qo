@@ -72,13 +72,25 @@ def grep_runtime_change(old_result_file, new_result_file, clients, runtime):
     return 100 - (new_runtime / old_runtime) * 100
 
 
+def grep_runtime(result_file, clients):
+    if not os.path.isfile(result_file):
+        return 0
+    df = pd.read_csv(result_file)
+
+    df = df[df.CLIENTS == clients]
+
+    if "hana" in result_file:
+        df = df[df.RUNTIME_MS > 1000]
+    return df["RUNTIME_MS"].median()
+
+
 def main(data_dir, output_dir, metric):
     clients = 32
     runtime = 7200
     order = list(reversed(["hyrise-int", "hyrise", "hana-int", "hana", "umbra", "monetdb", "duckdb", "greenplum"]))[1:]
     changes = defaultdict(dict)
-    HANA_NAME = "SAP HANA"
     HANA_NAME = "System X"
+    HANA_NAME = "SAP HANA"
     min_lim = -10
 
     for benchmark in ["all"]:  # , "TPCH", "TPCDS", "SSB", "JOB"]:
@@ -97,6 +109,7 @@ def main(data_dir, output_dir, metric):
                 changes[dbms[: -len("-int")]]["optimizer"] = method(base_path, optimizer_path, clients, runtime)
                 # changes[dbms[:-len("-int")]]["opt_rewrites"] = method(base_path, rewrites_path, clients, runtime)
                 continue
+            print(dbms, grep_runtime(base_path, clients) / 1000 / 60)
 
             changes[dbms]["rewrites"] = method(base_path, rewrites_path, clients, runtime)
             changes[dbms]["keys"] = method(base_path, keys_path, clients, runtime)
@@ -184,7 +197,6 @@ def main(data_dir, output_dir, metric):
                 if abs(val) < 3.5:
                     va = "top" if val < 0 else "bottom"
                     color = "black"
-                    print(val)
                     y_pos = val + offset if val > 0 else max(min_lim, val) - offset
                 label = str(round(val, 1)) if abs(val) > 0.2 else str(round(val))
                 ax.text(pos, y_pos, label, ha="center", va=va, size=7 * 2, rotation=90, color=color)

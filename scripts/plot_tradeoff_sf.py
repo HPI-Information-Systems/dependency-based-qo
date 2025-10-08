@@ -26,8 +26,11 @@ def parse_args():
 
 
 def format_number(n, penalty_factor):
-    if n < 0:
-        n = n / abs(penalty_factor)
+    # if n < 0:
+    #     n = n / abs(penalty_factor)
+
+    if n < 1:
+        return str(round(n, 1))
     return f"{int(n):,.0f}".replace(",", r"\thinspace") if n % 1 == 0 else str(n)
 
 
@@ -95,7 +98,7 @@ def get_discovery_time(common_path):
 def main(commit, data_dir, output_dir, scale):
     benchmarks = {"TPCH": "TPC-H", "TPCDS": "TPC-DS", "StarSchema": "SSB"}
     all_scale_factors = range(1, 101)
-    discovery_visualization_factor = -1
+    discovery_visualization_factor = 1
 
     base_palette = Safe_6.hex_colors
 
@@ -135,8 +138,16 @@ def main(commit, data_dir, output_dir, scale):
             [benchmark_title, "Latency"] + [str(round(lat, 2)) + " s" for lat in latency_improvements[benchmark_title]]
         )
         result_table.append(
+            [benchmark_title, "Latency [%]"]
+            + [str(round(lat, 2)) + " %" for lat in latency_improvements_relative[benchmark_title]]
+        )
+        result_table.append(
             [benchmark_title, "Validation"]
             + [str(round(lat * 1000, 1)) + " ms" for lat in discovery_times[benchmark_title]]
+        )
+        result_table.append(
+            [benchmark_title, "Val [%]"]
+            + [str(round(lat, 2)) + " %" for lat in discovery_times_relative[benchmark_title]]
         )
 
     for i in range(len(result_table[0])):
@@ -255,7 +266,7 @@ def main(commit, data_dir, output_dir, scale):
         ax.yaxis.set_major_locator(FixedLocator(minimal_tick + list(range(0, ceil(plt.ylim()[1]), 25))))
         ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: format_number(x, discovery_visualization_factor)))
 
-        y_label = "Execution benefit [s]" if measurement_type == "abs" else "Share of Execution benefit [%]"
+        y_label = "Execution benefit [s]" if measurement_type == "abs" else "Share of execution benefit [%]"
         plt.ylabel(y_label, fontsize=8 * 2)
         plt.xlabel("Scale factor", fontsize=8 * 2)
         plt.legend(fontsize=6 * 2, fancybox=False, framealpha=1.0, ncols=2, edgecolor="black")
@@ -278,7 +289,7 @@ def main(commit, data_dir, output_dir, scale):
 
         for measurement in values.Measurement.unique():
             pl_data = values[values.Measurement == measurement].copy()
-            if measurement == "Discovery overhead":
+            if measurement == "Discovery overhead" and measurement_type == "abs":
                 pl_data.y = pl_data.y * 1000 / discovery_visualization_factor
             sns.lineplot(
                 data=pl_data,
@@ -304,8 +315,11 @@ def main(commit, data_dir, output_dir, scale):
                     max_lim = min(max_lim, 124.99)
                     ax.yaxis.set_major_locator(FixedLocator(list(range(0, int(max_lim), 20))))
                 plt.ylim((0, max_lim))
-            ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: format_number(x, 1)))
+            if measurement_type == "rel" and measurement == "Latency improvement":
+                plt.ylim((0, 1.5 * max_lim))
+
             ax.xaxis.set_major_locator(FixedLocator([1] + list(range(20, 101, 20))))
+            ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: format_number(x, 1)))
 
             y_label = measurement
             time_unit = " [s]" if measurement == "Latency improvement" else " [ms]"
@@ -322,7 +336,9 @@ def main(commit, data_dir, output_dir, scale):
             fig_width = column_width * 0.475 * 2
             fig_height = column_width * 0.475 * 2
             fig.set_size_inches(fig_width, fig_height)
+
             plt.tight_layout(pad=0)
+            # ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: format_number(x, discovery_visualization_factor)))
 
             measurement_name = measurement.replace(" ", "_").lower()
             plt.savefig(

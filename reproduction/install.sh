@@ -3,6 +3,7 @@
 set -e
 
 # Load submodules and install dependencies.
+echo "Install Hyrise dependencies."
 git config --global --add safe.directory "$(pwd)"
 git submodule update --init --recursive --quiet
 HYRISE_HEADLESS_SETUP=1 ./hyrise/install_dependencies.sh
@@ -16,6 +17,7 @@ monetdb_home="${project_root}/db_comparison_data/monetdb"
 umbra_home="${project_root}/db_comparison_data/umbra"
 
 # Build Hyrise binaries and dependency discovery plugin.
+echo "Build Hyrise."
 cd hyrise
 mkdir -p cmake-build-release && cd cmake-build-release
 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-17 -DCMAKE_CXX_COMPILER=clang++-17 ..
@@ -23,6 +25,7 @@ make hyriseBenchmarkTPCH hyriseBenchmarkTPCDS  hyriseBenchmarkStarSchema hyriseB
      hyriseServer hyriseDependencyDiscoveryPlugin -j "$(nproc)"
 
 # Build and install MonetDB binaries.
+echo "Build MonetDB."
 cd "$project_root"/monetdb
 mkdir -p rel && cd rel
 cmake -DCMAKE_INSTALL_PREFIX="$monetdb_home" -DASSERT=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-17 \
@@ -54,5 +57,6 @@ sudo systemctl stop docker docker.socket
 
 
 # Download data for experiments on different systems.
+echo "Download benchmark data."
 cd "$project_root"
 python3 python/helpers/download_data.py

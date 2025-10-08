@@ -15,6 +15,7 @@ done
 
 # Load submodules, install dependencies, build and install DBMS binaries.
 if [[ -z $SKIP_INSTALL ]]; then
+  echo "Install dependencies."
   ./reproduction/install.sh
 else
   echo "Skipping installation."

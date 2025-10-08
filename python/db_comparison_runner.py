@@ -3,8 +3,8 @@
 
 import argparse
 import atexit
-import datetime
 import csv
+import datetime
 import json
 import os
 import random
@@ -118,7 +118,9 @@ postgres_infeasible_queries = {
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "dbms", type=str, choices=["monetdb", "hyrise", "greenplum", "umbra", "hana", "hana-int", "hyrise-int", "duckdb", "postgres"]
+    "dbms",
+    type=str,
+    choices=["monetdb", "hyrise", "greenplum", "umbra", "hana", "hana-int", "hyrise-int", "duckdb", "postgres"],
 )
 parser.add_argument("--time", "-t", type=int, default=7200)
 parser.add_argument("--port", "-p", type=int, default=5432)
@@ -215,6 +217,7 @@ tpch_queries = {f"TPCH-{q}": tpch_queries[q] for q in sorted(tpch_queries.keys()
 tpcds_queries = {f"TPCDS-{q}": tpcds_queries[q] for q in sorted(tpcds_queries.keys())}
 ssb_queries = {f"SSB-{q}": ssb_queries[q] for q in sorted(ssb_queries.keys())}
 job_queries = {f"JOB-{q}": job_queries[q] for q in sorted(job_queries.keys())}
+
 
 def get_cursor():
     if args.dbms == "monetdb":
@@ -343,6 +346,7 @@ def drop_constraints(skip):
         connection.commit()
     connection.close()
 
+
 def add_indexes():
     start = time.perf_counter()
 
@@ -368,10 +372,11 @@ def add_indexes():
     print(f"\r- Added {len(schema_keys.primary_keys)} PRIMARY KEY indexes ({round(end - start, 1)} s)")
     start = end
 
+
 def drop_indexes():
     connection, cursor = get_cursor()
     print("- Drop PRIMARY KEY indexes ...")
-    for constraint_id in range(1, len(schema_keys.primary_keys) +1):
+    for constraint_id in range(1, len(schema_keys.primary_keys) + 1):
         try:
             cursor.execute(f"DROP INDEX IF EXISTS idx_pk_{constraint_id}")
         except Exception:
@@ -379,7 +384,6 @@ def drop_indexes():
 
     connection.commit()
     connection.close()
-
 
 
 dbms_process = None
@@ -843,8 +847,7 @@ benchmark_queries = sorted(selected_benchmark_queries.keys())
 
 if args.clients > 1:
     benchmark_queries = ["shuffled"]
-for query_id in benchmark_queries:
-    query_name = query_id if query_id != "shuffled" else "shuffled"
+for query_name in benchmark_queries:
     print("Benchmarking {}...".format(query_name), end="", flush=True)
 
     successful_runs = []
@@ -857,7 +860,7 @@ for query_id in benchmark_queries:
         threads.append(
             threading.Thread(
                 target=loop,
-                args=(thread_id, selected_benchmark_queries, query_id, start_time, successful_runs, timeout),
+                args=(thread_id, selected_benchmark_queries, query_name, start_time, successful_runs, timeout),
             )
         )
         threads[-1].start()
@@ -888,14 +891,15 @@ for query_id in benchmark_queries:
             time.sleep(1)
 
     print("\r" + " " * 80, end="")
+    item_runs = successful_runs
     print(
         "\r{}\t>>\t avg.: {:10.4f} ms\tmed.: {:10.4f} ms\tmin.: {:10.4f} ms\tmax.: {:10.4f} ms\tfinished {}".format(
             query_name,
-            sum(successful_runs) / len(successful_runs) if len(successful_runs) > 0 else 0,
-            statistics.median(successful_runs) if len(successful_runs) > 0 else 0,
-            min(successful_runs) if len(successful_runs) > 0 else 0,
-            max(successful_runs) if len(successful_runs) > 0 else 0,
-            str(datetime.datetime.now().time())
+            sum(item_runs) / len(item_runs) if len(item_runs) > 0 else 0,
+            statistics.median(item_runs) if len(item_runs) > 0 else 0,
+            min(item_runs) if len(item_runs) > 0 else 0,
+            max(item_runs) if len(item_runs) > 0 else 0,
+            str(datetime.datetime.now().time()),
         )
     )
 

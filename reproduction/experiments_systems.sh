@@ -38,7 +38,7 @@ $numactl_command ./python/db_comparison_runner.py hyrise --clients "${num_client
 $numactl_command ./python/db_comparison_runner.py hyrise-int --clients "${num_clients}" --cores "${num_cpu}" -m "${node_id}" "${no_numa}"
 
 rm -rf db_comparison_data/monetdb/data
-mkdir -r db_comparison_data/monetdb/data
+mkdir -p db_comparison_data/monetdb/data
 $numactl_command ./python/db_comparison_runner.py monetdb --clients "${num_clients}" --cores "${num_cpu}" -m "${node_id}" "${no_numa}"
 $numactl_command ./python/db_comparison_runner.py monetdb --clients "${num_clients}" --cores "${num_cpu}" -m "${node_id}" --skip_data_loading "${no_numa}" --rewrites
 $numactl_command ./python/db_comparison_runner.py monetdb --clients "${num_clients}" --cores "${num_cpu}" -m "${node_id}" --skip_data_loading "${no_numa}" --schema_keys
@@ -53,24 +53,24 @@ $numactl_command ./python/db_comparison_runner.py duckdb --clients "${num_client
 rm -rf db.duckdb
 
 rm -rf db_comparison_data/umbra/*
-mkdir -r db_comparison_data/umbra
+mkdir -p db_comparison_data/umbra
 sudo systemctl start docker docker.socket
-sudo docker run -v "$(pwd)"/db_comparison_data/umbra:/var/db -v "$(pwd)":"$(pwd)" -p 5432:5432 "${docker_cpuset}" --name umbra-bench -d umbradb/umbra:25.01
+sudo docker run -v "$(pwd)"/db_comparison_data/umbra:/var/db -v "$(pwd)":"$(pwd)" -p 5432:5432 "${docker_cpuset}" --name umbra-bench -d umbradb/umbra:24.11
 $numactl_command ./python/db_comparison_runner.py umbra --clients "${num_clients}" --cores "${num_cpu}" -m "${node_id}" "${no_numa}"
 $numactl_command ./python/db_comparison_runner.py umbra --clients "${num_clients}" --cores "${num_cpu}" -m "${node_id}" "${no_numa}" --rewrites
 docker stop umbra-bench
 
 # Delete all data and make sure to get a new DB because we cannot add/drop constraints with Umbra
 rm -rf db_comparison_data/umbra/*
-mkdir -r db_comparison_data/umbra
+mkdir -p db_comparison_data/umbra
 docker system prune -fa
 
-sudo docker run -v "$(pwd)"/db_comparison_data/umbra:/var/db -v "$(pwd)":"$(pwd)" -p 5432:5432 "${docker_cpuset}" --name umbra-bench -d umbradb/umbra:25.01
+sudo docker run -v "$(pwd)"/db_comparison_data/umbra:/var/db -v "$(pwd)":"$(pwd)" -p 5432:5432 "${docker_cpuset}" --name umbra-bench -d umbradb/umbra:24.11
 $numactl_command ./python/db_comparison_runner.py umbra --clients "${num_clients}" --cores "${num_cpu}" -m "${node_id}" "${no_numa}" --schema_keys
 $numactl_command ./python/db_comparison_runner.py umbra --clients "${num_clients}" --cores "${num_cpu}" -m "${node_id}" "${no_numa}" --rewrites --schema_keys
 
 docker stop umbra-bench
 rm -rf db_comparison_data/umbra/*
-mkdir -r db_comparison_data/umbra
+mkdir -p db_comparison_data/umbra
 docker system prune -fa
 sudo systemctl stop docker docker.socket
