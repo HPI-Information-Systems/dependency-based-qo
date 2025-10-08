@@ -25,14 +25,14 @@ The script calls all reproduction scripts in `reproduction`:
 
 ## Repository Structure
 
-The `hyrise` submodule imports the adapted version of Hyrise for dependency-based query optimization.
+The [`hyrise`](https://github.com/HPI-Information-Systems/dependency-based-optimization-hyrise) submodule imports the adapted version of Hyrise for dependency-based query optimization.
 - The presented query rewrites are implemented as optimizer rules, found in `hyrise/src/lib/optimizer/strategy`. The relevant implementations are:
   - O-1: `dependent_group_by_reduction_rule.[c|h]pp`
   - O-2: `join_to_semi_join_rule.[c|h]pp`
   - O-3: `join_to_predicate_rewrite_rule.[c|h]pp`
 - `hyrise/src/plugins/dependency_discovery_plugin.[c|h]pp` contains the dependency discovery plug-in. The implementation is further split.
-  - The `candidate_strategy` subdirectory contains the candidate generation rules.
-  - The `validation_strategy` subdirectory contains the metadata-aware dependency validation algorithms.
+  - The `dependency_discovery/candidate_strategy` subdirectory contains the candidate generation rules.
+  - The `dependency_discovery/validation_strategy` subdirectory contains the metadata-aware dependency validation algorithms.
 - The `hyrise/scripts` folder contains various scripts, e.g., for benchmarking Hyrise.
   - `benchmark_single_optimizations.sh` orchestrates all expriments for the impact of dependency-based optimizations in Hyrise, including dependency discovery times.
   - `benchmark_compare_plugin_sf.sh` runs the experiments for the tradeoff between latency improvements achieved by dependency-based optimizations and the discovery overhead for different scale factors.
