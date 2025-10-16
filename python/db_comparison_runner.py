@@ -799,7 +799,7 @@ elif args.dbms == "duckdb":
     # "at" is a reserved keyword in DuckDB
     selected_benchmark_queries = {
         k: q.replace("aka_title AS at", "aka_title AS akat").replace(" at.", " akat.").replace("(at.", "(akat.")
-        for k, q in selected_benchmark_queries
+        for k, q in selected_benchmark_queries.items()
     }
 
 
