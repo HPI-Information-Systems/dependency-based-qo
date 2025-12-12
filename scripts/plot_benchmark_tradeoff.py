@@ -195,6 +195,9 @@ def main(commit, data_dir, output_dir):
             color="black",
         )
 
+        line_offset = bar_width * 0.45
+        ax.plot([x_pos - line_offset, x_pos + line_offset], [a, a], color="black", lw=1)
+
     ax.set_yscale("log")
     ax.set_ylim(1, ax.get_ylim()[1] * 5)
 

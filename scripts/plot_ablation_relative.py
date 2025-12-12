@@ -106,7 +106,7 @@ def main(data_dir, output_dir, scale):
         vals["diffs"] = diffs
 
     bar_width = 0.25
-    margin = 0.03
+    margin = 0.05
 
     group_centers = np.arange(len(benchmarks))
     offsets = [-1, 0, 1]
@@ -180,7 +180,7 @@ def main(data_dir, output_dir, scale):
         "UccDictionary": "UCC statistics invalid.",
         "UccBulkInsert": "UCC insert partition",
         "UccIndex": "UCC segment index",
-        "Remaining": "Remaining opts.",
+        "Remaining": "Other opts.",
     }
 
     plot_colors = [Safe_10.hex_colors[0]] + Safe_10.hex_colors[2:3] + Safe_10.hex_colors[4:]
@@ -228,26 +228,26 @@ def main(data_dir, output_dir, scale):
     labels = list(reversed(labels))
     plt.legend(
         loc="best",
-        fontsize=5 * 2,
+        fontsize=5.5 * 2,
         ncol=ncol,
         fancybox=False,
         framealpha=1.0,
         edgecolor="black",
         handles=handles,
         labels=labels,
-        columnspacing=1.0,
+        columnspacing=0.5,
         labelspacing=0.25,
         handletextpad=0.4,
         handlelength=1.4,
     )
 
     for xpos, b in zip(bar_positions, bens):
-        ax.text(xpos, -15, b, size=6 * 2, va="top", ha="center")
+        ax.text(xpos, -16, b, size=6 * 2, va="top", ha="center")
 
     plt.grid(axis="y", visible=True)
     fig = plt.gcf()
 
-    ax.tick_params(axis="x", which="major", labelsize=5 * 2, width=1, length=6, left=True, bottom=True)
+    ax.tick_params(axis="x", which="major", labelsize=5.5 * 2, width=1, length=6, left=True, bottom=True)
     ax.tick_params(axis="y", which="major", labelsize=7 * 2, width=1, length=6, left=True, bottom=True)
     ax.tick_params(axis="y", which="minor", width=0.5, length=4, left=True)
     y_ticks = [t for t in ax.get_yticks() if t <= 100]
